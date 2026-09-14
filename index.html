@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="id-ID">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+
+    <title>Sehat Harian — Pemantau Gaya Hidup</title>
+    <meta
+      name="description"
+      content="Pantau langkah kaki, air minum, kalori, dan tidur harianmu. Untuk pemantauan gaya hidup mandiri, bukan pengganti diagnosis medis."
+    />
+
+    <!-- PWA -->
+    <link rel="manifest" href="./manifest.json" />
+    <meta name="theme-color" content="#059669" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Sehat Harian" />
+    <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png" />
+
+    <!-- React + ReactDOM (no build tool needed) -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <!-- Babel: transpiles the JSX below directly in the browser -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
+    <!-- Tailwind CDN build (compiles utility classes on the fly) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <script type="text/babel" data-presets="react">
+      const { useState, useEffect, useMemo } = React;
+
+      /* ---------------------------------------------------------------
+       * ICONS — small hand-drawn line icons, no external icon package
+       * needed so the whole app works from a single static file.
+       * ------------------------------------------------------------- */
+      function Icon({ children, size = 18, className = "" }) {
+        return (
+          <svg
+            width={size}
+            height={size}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={className}
+          >
+            {children}
+          </svg>
+        );
+      }
+      const ActivityIcon = (p) => (
+        <Icon {...p}><polyline points="2 12 8 12 11 20 14 4 17 12 22 12" /></Icon>
+      );
+      const DropletIcon = (p) => (
+        <Icon {...p}><path d="M12 2s7 8.5 7 13a7 7 0 1 1-14 0c0-4.5 7-13 7-13z" /></Icon>
+      );
+      const FlameIcon = (p) => (
+        <Icon {...p}><path d="M12 2c2.5 4-2 5-2 9a4 4 0 0 0 8 0c0-2-1-3-1-3 2 2 3 5 3 7a8 8 0 1 1-16 0c0-5 4-8 8-13z" /></Icon>
+      );
+      const MoonIcon = (p) => (
+        <Icon {...p}><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" /></Icon>
+      );
+      const BellIcon = (p) => (
+        <Icon {...p}>
+          <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+          <path d="M13.7 21a2 2 0 0 1-3.4 0" />
+        </Icon>
+      );
+      const UserIcon = (p) => (
+        <Icon {...p}><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 4-7 8-7s8 3 8 7" /></Icon>
+      );
+      const TrendingUpIcon = (p) => (
+        <Icon {...p}><polyline points="3 17 9 11 13 15 21 6" /><polyline points="14 6 21 6 21 13" /></Icon>
+      );
+      const ShieldCheckIcon = (p) => (
+        <Icon {...p}>
+          <path d="M12 2 4 5v6c0 5 3.5 9.5 8 11 4.5-1.5 8-6 8-11V5z" />
+          <polyline points="9 12 11 14 15 10" />
+        </Icon>
+      );
+      const XIcon = (p) => (
+        <Icon {...p}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></Icon>
+      );
+      const CheckIcon = (p) => (
+        <Icon {...p}><polyline points="20 6 9 17 4 12" /></Icon>
+      );
+      const PlusIcon = (p) => (
+        <Icon {...p}><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></Icon>
+      );
+      const MinusIcon = (p) => (
+        <Icon {...p}><line x1="5" y1="12" x2="19" y2="12" /></Icon>
+      );
+      const InfoIcon = (p) => (
+        <Icon {...p}><circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" /></Icon>
+      );
+      const DashboardIcon = (p) => (
+        <Icon {...p}>
+          <rect x="3" y="3" width="7" height="9" rx="1" />
+          <rect x="14" y="3" width="7" height="5" rx="1" />
+          <rect x="14" y="12" width="7" height="9" rx="1" />
+          <rect x="3" y="16" width="7" height="5" rx="1" />
+        </Icon>
+      );
+      const ChecklistIcon = (p) => (
+        <Icon {...p}>
+          <rect x="8" y="2" width="8" height="4" rx="1" />
+          <path d="M9 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-4" />
+          <line x1="9" y1="12" x2="15" y2="12" />
+          <line x1="9" y1="16" x2="13" y2="16" />
+        </Icon>
+      );
+
+      /* ---------------------------------------------------------------
+       * MOCK DATA
+       * ------------------------------------------------------------- */
+      const INITIAL_PROFILE = { name: "Sari Wulandari", age: 29, weightKg: 58, heightCm: 162 };
+      const INITIAL_TODAY = { steps: 4820, waterMl: 1200, calories: 1450, sleepHours: 6.5 };
+      const GOALS = { steps: 8000, waterMl: 2000, calories: 2000, sleepHours: 8 };
+      const HISTORY = [
+        { day: "Sen", steps: 6200, waterMl: 1600, sleepHours: 7.2 },
+        { day: "Sel", steps: 7400, waterMl: 1800, sleepHours: 6.8 },
+        { day: "Rab", steps: 5100, waterMl: 1500, sleepHours: 7.5 },
+        { day: "Kam", steps: 8900, waterMl: 2100, sleepHours: 6.2 },
+        { day: "Jum", steps: 3200, waterMl: 1300, sleepHours: 5.9 },
+        { day: "Sab", steps: 9700, waterMl: 2400, sleepHours: 8.1 },
+        { day: "Min", steps: 6600, waterMl: 1900, sleepHours: 7.4 },
+      ];
+      const INITIAL_REMINDERS = [
+        { id: 1, label: "Minum air — pukul 08.00", time: "08:00", done: true },
+        { id: 2, label: "Vitamin D — setelah sarapan", time: "08:30", done: true },
+        { id: 3, label: "Minum air — pukul 12.00", time: "12:00", done: false },
+        { id: 4, label: "Peregangan siang", time: "13:00", done: false },
+        { id: 5, label: "Minum air — pukul 16.00", time: "16:00", done: false },
+        { id: 6, label: "Obat magnesium — malam", time: "21:00", done: false },
+      ];
+
+      /* ---------------------------------------------------------------
+       * PERSISTENCE (localStorage)
+       * ------------------------------------------------------------- */
+      const STORAGE_KEY = "sehat-harian:v1";
+      function loadPersisted() {
+        try {
+          const raw = window.localStorage.getItem(STORAGE_KEY);
+          return raw ? JSON.parse(raw) : null;
+        } catch (err) {
+          console.warn("Gagal membaca data tersimpan.", err);
+          return null;
+        }
+      }
+      function savePersisted(data) {
+        try {
+          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        } catch (err) {
+          console.warn("Gagal menyimpan data.", err);
+        }
+      }
+
+      /* ---------------------------------------------------------------
+       * HELPERS
+       * ------------------------------------------------------------- */
+      function clampPercent(value, goal) {
+        if (!goal) return 0;
+        return Math.min(100, Math.round((value / goal) * 100));
+      }
+      function calcBmi(weightKg, heightCm) {
+        const heightM = heightCm / 100;
+        return heightM ? weightKg / (heightM * heightM) : 0;
+      }
+      function bmiCategory(bmi) {
+        if (bmi < 18.5) return { label: "Kurus", color: "text-cyan-600" };
+        if (bmi < 25) return { label: "Normal", color: "text-emerald-600" };
+        if (bmi < 30) return { label: "Kelebihan berat", color: "text-amber-600" };
+        return { label: "Obesitas", color: "text-rose-600" };
+      }
+
+      /* ---------------------------------------------------------------
+       * SMALL PRESENTATIONAL PIECES
+       * ------------------------------------------------------------- */
+      function RingStat({ icon: IconComp, label, value, unit, percent, tint }) {
+        const radius = 34;
+        const circumference = 2 * Math.PI * radius;
+        const offset = circumference - (percent / 100) * circumference;
+        const tints = {
+          emerald: { ring: "stroke-emerald-500", bg: "bg-emerald-50", text: "text-emerald-700" },
+          cyan: { ring: "stroke-cyan-500", bg: "bg-cyan-50", text: "text-cyan-700" },
+          amber: { ring: "stroke-amber-500", bg: "bg-amber-50", text: "text-amber-700" },
+          slate: { ring: "stroke-slate-500", bg: "bg-slate-100", text: "text-slate-700" },
+        };
+        const t = tints[tint] || tints.emerald;
+        return (
+          <div className={`flex items-center gap-4 rounded-2xl ${t.bg} p-4`}>
+            <svg width="84" height="84" viewBox="0 0 84 84" className="shrink-0 -rotate-90">
+              <circle cx="42" cy="42" r={radius} strokeWidth="8" className="stroke-white" fill="none" />
+              <circle
+                cx="42" cy="42" r={radius} strokeWidth="8" fill="none" strokeLinecap="round"
+                className={t.ring} strokeDasharray={circumference} strokeDashoffset={offset}
+                style={{ transition: "stroke-dashoffset 500ms ease" }}
+              />
+            </svg>
+            <div className="min-w-0">
+              <div className={`flex items-center gap-1.5 text-xs font-medium ${t.text}`}>
+                <IconComp size={14} /><span>{label}</span>
+              </div>
+              <p className="mt-1 text-2xl font-semibold text-slate-800">
+                {value.toLocaleString("id-ID")}
+                <span className="ml-1 text-sm font-normal text-slate-500">{unit}</span>
+              </p>
+              <p className="text-xs text-slate-500">{percent}% dari target harian</p>
+            </div>
+          </div>
+        );
+      }
+
+      function WeekBars({ data, field, max, tint, unit }) {
+        const tints = { emerald: "bg-emerald-500", cyan: "bg-cyan-500" };
+        return (
+          <div className="flex items-end justify-between gap-2 h-32">
+            {data.map((d) => {
+              const h = Math.max(4, Math.round((d[field] / max) * 100));
+              return (
+                <div key={d.day} className="flex flex-1 flex-col items-center gap-2">
+                  <div className="flex h-24 w-full items-end rounded-lg bg-slate-100">
+                    <div
+                      className={`w-full rounded-lg ${tints[tint]}`}
+                      style={{ height: `${h}%`, transition: "height 400ms ease" }}
+                      title={`${d[field]} ${unit}`}
+                    />
+                  </div>
+                  <span className="text-[11px] text-slate-500">{d.day}</span>
+                </div>
+              );
+            })}
+          </div>
+        );
+      }
+
+      function Counter({ value, onIncrement, onDecrement, unit }) {
+        return (
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onDecrement}
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-500 hover:bg-slate-50 active:scale-95"
+              aria-label="Kurangi"
+            >
+              <MinusIcon size={16} />
+            </button>
+            <span className="min-w-[72px] text-center text-lg font-semibold text-slate-800">
+              {value.toLocaleString("id-ID")} <span className="text-xs font-normal text-slate-400">{unit}</span>
+            </span>
+            <button
+              onClick={onIncrement}
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95"
+              aria-label="Tambah"
+            >
+              <PlusIcon size={16} />
+            </button>
+          </div>
+        );
+      }
+
+      /* ---------------------------------------------------------------
+       * TABS
+       * ------------------------------------------------------------- */
+      function DashboardTab({ today, history }) {
+        return (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <RingStat icon={ActivityIcon} label="Langkah" value={today.steps} unit="langkah" percent={clampPercent(today.steps, GOALS.steps)} tint="emerald" />
+              <RingStat icon={DropletIcon} label="Air minum" value={today.waterMl} unit="ml" percent={clampPercent(today.waterMl, GOALS.waterMl)} tint="cyan" />
+              <RingStat icon={FlameIcon} label="Kalori" value={today.calories} unit="kkal" percent={clampPercent(today.calories, GOALS.calories)} tint="amber" />
+              <RingStat icon={MoonIcon} label="Tidur" value={today.sleepHours} unit="jam" percent={clampPercent(today.sleepHours, GOALS.sleepHours)} tint="slate" />
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-5">
+              <div className="mb-4 flex items-center gap-2 text-slate-700">
+                <TrendingUpIcon size={18} className="text-emerald-600" />
+                <h3 className="font-semibold">Langkah kaki, 7 hari terakhir</h3>
+              </div>
+              <WeekBars data={history} field="steps" max={10000} tint="emerald" unit="langkah" />
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-5">
+              <div className="mb-4 flex items-center gap-2 text-slate-700">
+                <TrendingUpIcon size={18} className="text-cyan-600" />
+                <h3 className="font-semibold">Asupan air, 7 hari terakhir</h3>
+              </div>
+              <WeekBars data={history} field="waterMl" max={2500} tint="cyan" unit="ml" />
+            </div>
+          </div>
+        );
+      }
+
+      function ActivityTab({ today, setToday }) {
+        const step = { steps: 500, waterMl: 250, calories: 100, sleepHours: 0.5 };
+        const adjust = (key, dir) => {
+          setToday((prev) => {
+            const next = prev[key] + dir * step[key];
+            return { ...prev, [key]: Math.max(0, Math.round(next * 10) / 10) };
+          });
+        };
+        const rows = [
+          { key: "steps", label: "Langkah kaki", unit: "langkah", icon: ActivityIcon, tint: "text-emerald-600" },
+          { key: "waterMl", label: "Air minum", unit: "ml", icon: DropletIcon, tint: "text-cyan-600" },
+          { key: "calories", label: "Kalori masuk", unit: "kkal", icon: FlameIcon, tint: "text-amber-600" },
+          { key: "sleepHours", label: "Durasi tidur", unit: "jam", icon: MoonIcon, tint: "text-slate-600" },
+        ];
+        return (
+          <div className="space-y-4">
+            <p className="text-sm text-slate-500">
+              Catat aktivitas harianmu secara manual. Data ini hanya untuk pemantauan pribadi.
+            </p>
+            {rows.map((r) => (
+              <div key={r.key} className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-2">
+                  <r.icon size={18} className={r.tint} />
+                  <span className="font-medium text-slate-700">{r.label}</span>
+                </div>
+                <Counter value={today[r.key]} unit={r.unit} onIncrement={() => adjust(r.key, 1)} onDecrement={() => adjust(r.key, -1)} />
+              </div>
+            ))}
+          </div>
+        );
+      }
+
+      function ReminderTab({ reminders, toggleReminder, addReminder }) {
+        const [label, setLabel] = useState("");
+        const [time, setTime] = useState("");
+        const completedCount = reminders.filter((r) => r.done).length;
+        const handleAdd = () => {
+          if (!label.trim() || !time) return;
+          addReminder(label.trim(), time);
+          setLabel(""); setTime("");
+        };
+        return (
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+              <div className="mb-1 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-slate-700">
+                  <BellIcon size={18} className="text-emerald-600" />
+                  <h3 className="font-semibold">Pengingat hari ini</h3>
+                </div>
+                <span className="text-sm text-slate-500">{completedCount}/{reminders.length} selesai</span>
+              </div>
+              <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                <div
+                  className="h-full rounded-full bg-emerald-500"
+                  style={{ width: `${reminders.length ? (completedCount / reminders.length) * 100 : 0}%`, transition: "width 400ms ease" }}
+                />
+              </div>
+            </div>
+            <ul className="space-y-2">
+              {reminders.slice().sort((a, b) => a.time.localeCompare(b.time)).map((r) => (
+                <li key={r.id} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3">
+                  <button
+                    onClick={() => toggleReminder(r.id)}
+                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 ${
+                      r.done ? "border-emerald-600 bg-emerald-600 text-white" : "border-slate-300 text-transparent"
+                    }`}
+                    aria-label={r.done ? "Tandai belum selesai" : "Tandai selesai"}
+                  >
+                    <CheckIcon size={14} />
+                  </button>
+                  <div className={`flex-1 ${r.done ? "text-slate-400 line-through" : "text-slate-700"}`}>{r.label}</div>
+                  <span className="text-xs text-slate-400">{r.time}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="rounded-2xl border border-dashed border-slate-300 p-4">
+              <h4 className="mb-3 text-sm font-medium text-slate-600">Tambah pengingat baru</h4>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <input
+                  value={label} onChange={(e) => setLabel(e.target.value)}
+                  placeholder="Contoh: Minum vitamin C"
+                  className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-emerald-500"
+                />
+                <input
+                  type="time" value={time} onChange={(e) => setTime(e.target.value)}
+                  className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-emerald-500"
+                />
+                <button
+                  onClick={handleAdd}
+                  className="flex items-center justify-center gap-1 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+                >
+                  <PlusIcon size={16} /> Tambah
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      function EditProfileModal({ profile, onSave, onClose }) {
+        const [form, setForm] = useState(profile);
+        const update = (key) => (e) => {
+          const raw = e.target.value;
+          setForm((prev) => ({ ...prev, [key]: key === "name" ? raw : Number(raw) }));
+        };
+        return (
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 p-4 sm:items-center">
+            <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-base font-semibold text-slate-800">Edit profil</h3>
+                <button onClick={onClose} className="rounded-full p-1 text-slate-400 hover:bg-slate-100" aria-label="Tutup">
+                  <XIcon size={18} />
+                </button>
+              </div>
+              <div className="space-y-3">
+                <label className="block text-sm">
+                  <span className="mb-1 block text-slate-500">Nama</span>
+                  <input value={form.name} onChange={update("name")} className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:border-emerald-500" />
+                </label>
+                <div className="grid grid-cols-3 gap-3">
+                  <label className="block text-sm">
+                    <span className="mb-1 block text-slate-500">Usia</span>
+                    <input type="number" value={form.age} onChange={update("age")} className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:border-emerald-500" />
+                  </label>
+                  <label className="block text-sm">
+                    <span className="mb-1 block text-slate-500">Berat (kg)</span>
+                    <input type="number" value={form.weightKg} onChange={update("weightKg")} className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:border-emerald-500" />
+                  </label>
+                  <label className="block text-sm">
+                    <span className="mb-1 block text-slate-500">Tinggi (cm)</span>
+                    <input type="number" value={form.heightCm} onChange={update("heightCm")} className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:border-emerald-500" />
+                  </label>
+                </div>
+              </div>
+              <div className="mt-5 flex gap-2">
+                <button onClick={onClose} className="flex-1 rounded-lg border border-slate-200 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">Batal</button>
+                <button onClick={() => onSave(form)} className="flex-1 rounded-lg bg-emerald-600 py-2 text-sm font-medium text-white hover:bg-emerald-700">Simpan</button>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      function ProfileTab({ profile, onEdit }) {
+        const bmi = useMemo(() => calcBmi(profile.weightKg, profile.heightCm), [profile]);
+        const category = bmiCategory(bmi);
+        return (
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                    <UserIcon size={28} />
+                  </div>
+                  <div>
+                    <p className="text-lg font-semibold text-slate-800">{profile.name}</p>
+                    <p className="text-sm text-slate-500">{profile.age} tahun</p>
+                  </div>
+                </div>
+                <button onClick={onEdit} className="shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
+                  Edit
+                </button>
+              </div>
+              <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
+                <div className="rounded-xl bg-slate-50 p-3">
+                  <p className="text-xs text-slate-500">Berat badan</p>
+                  <p className="text-base font-semibold text-slate-800">{profile.weightKg} kg</p>
+                </div>
+                <div className="rounded-xl bg-slate-50 p-3">
+                  <p className="text-xs text-slate-500">Tinggi badan</p>
+                  <p className="text-base font-semibold text-slate-800">{profile.heightCm} cm</p>
+                </div>
+                <div className="rounded-xl bg-slate-50 p-3">
+                  <p className="text-xs text-slate-500">Indeks massa tubuh</p>
+                  <p className="text-base font-semibold text-slate-800">{bmi.toFixed(1)}</p>
+                </div>
+                <div className="rounded-xl bg-slate-50 p-3">
+                  <p className="text-xs text-slate-500">Kategori</p>
+                  <p className={`text-base font-semibold ${category.color}`}>{category.label}</p>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-start gap-3 rounded-2xl border border-cyan-100 bg-cyan-50 p-4 text-sm text-cyan-800">
+              <InfoIcon size={18} className="mt-0.5 shrink-0" />
+              <p>
+                Indeks massa tubuh (IMT) di atas adalah perhitungan otomatis dan bersifat umum. Untuk
+                interpretasi yang akurat, konsultasikan dengan tenaga medis profesional.
+              </p>
+            </div>
+          </div>
+        );
+      }
+
+      /* ---------------------------------------------------------------
+       * COMPLIANCE COMPONENTS
+       * ------------------------------------------------------------- */
+      function MedicalDisclaimerBanner({ onDismiss }) {
+        return (
+          <div className="border-b border-amber-200 bg-amber-50 px-4 py-3">
+            <div className="mx-auto flex max-w-3xl items-start gap-3">
+              <ShieldCheckIcon size={18} className="mt-0.5 shrink-0 text-amber-600" />
+              <p className="flex-1 text-xs leading-relaxed text-amber-800 sm:text-sm">
+                Aplikasi ini hanya ditujukan untuk pemantauan gaya hidup mandiri dan bersifat informatif.
+                Aplikasi ini <span className="font-semibold">bukan alat diagnosis</span> dan tidak
+                menggantikan pemeriksaan, diagnosis, atau penanganan dari dokter maupun tenaga medis
+                profesional. Segera hubungi tenaga medis jika kamu mengalami keluhan kesehatan.
+              </p>
+              <button onClick={onDismiss} className="shrink-0 rounded-full p-1 text-amber-600 hover:bg-amber-100" aria-label="Tutup pemberitahuan">
+                <XIcon size={16} />
+              </button>
+            </div>
+          </div>
+        );
+      }
+
+      function PrivacyModal({ onClose }) {
+        return (
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 p-4 sm:items-center">
+            <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="flex items-center gap-2 text-base font-semibold text-slate-800">
+                  <ShieldCheckIcon size={18} className="text-emerald-600" />
+                  Privasi &amp; keamanan data
+                </h3>
+                <button onClick={onClose} className="rounded-full p-1 text-slate-400 hover:bg-slate-100" aria-label="Tutup">
+                  <XIcon size={18} />
+                </button>
+              </div>
+              <ul className="space-y-2 text-sm text-slate-600">
+                <li>• Data yang kamu catat disimpan secara aman di perangkatmu.</li>
+                <li>• Kami tidak menjual atau membagikan data pribadimu ke pihak ketiga.</li>
+                <li>• Data hanya digunakan untuk menampilkan ringkasan dan tren pribadimu.</li>
+                <li>• Kamu dapat menghapus datamu kapan saja lewat pengaturan browser.</li>
+              </ul>
+              <button onClick={onClose} className="mt-5 w-full rounded-lg bg-emerald-600 py-2 text-sm font-medium text-white hover:bg-emerald-700">
+                Mengerti
+              </button>
+            </div>
+          </div>
+        );
+      }
+
+      /* ---------------------------------------------------------------
+       * APP SHELL
+       * ------------------------------------------------------------- */
+      const TABS = [
+        { id: "dashboard", label: "Dasbor", icon: DashboardIcon },
+        { id: "activity", label: "Aktivitas", icon: ActivityIcon },
+        { id: "reminders", label: "Pengingat", icon: ChecklistIcon },
+        { id: "profile", label: "Profil", icon: UserIcon },
+      ];
+
+      function App() {
+        const [activeTab, setActiveTab] = useState("dashboard");
+        const [showDisclaimer, setShowDisclaimer] = useState(true);
+        const [showPrivacy, setShowPrivacy] = useState(false);
+        const [showEditProfile, setShowEditProfile] = useState(false);
+
+        const persisted = useMemo(() => loadPersisted(), []);
+        const [profile, setProfile] = useState(persisted?.profile ?? INITIAL_PROFILE);
+        const [today, setToday] = useState(persisted?.today ?? INITIAL_TODAY);
+        const [reminders, setReminders] = useState(persisted?.reminders ?? INITIAL_REMINDERS);
+        const [lastUpdated, setLastUpdated] = useState(null);
+
+        useEffect(() => {
+          savePersisted({ profile, today, reminders });
+          setLastUpdated(new Date());
+        }, [profile, today, reminders]);
+
+        const toggleReminder = (id) => {
+          setReminders((prev) => prev.map((r) => (r.id === id ? { ...r, done: !r.done } : r)));
+        };
+        const addReminder = (label, time) => {
+          setReminders((prev) => [...prev, { id: Date.now(), label, time, done: false }]);
+        };
+
+        return (
+          <div className="min-h-screen bg-slate-50 font-sans text-slate-800">
+            {showDisclaimer && <MedicalDisclaimerBanner onDismiss={() => setShowDisclaimer(false)} />}
+
+            <header className="border-b border-slate-200 bg-white">
+              <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-600 text-white">
+                    <ActivityIcon size={18} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold leading-tight text-slate-800">Sehat Harian</p>
+                    <p className="text-xs leading-tight text-slate-400">
+                      {lastUpdated ? `Diperbarui ${lastUpdated.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}` : "Memuat..."}
+                    </p>
+                  </div>
+                </div>
+                <div className="hidden text-right sm:block">
+                  <p className="text-sm font-medium text-slate-700">{profile.name}</p>
+                  <p className="text-xs text-slate-400">{profile.age} tahun</p>
+                </div>
+              </div>
+              <nav className="mx-auto flex max-w-3xl gap-1 overflow-x-auto px-2 pb-2">
+                {TABS.map((t) => {
+                  const isActive = activeTab === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => setActiveTab(t.id)}
+                      className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                        isActive ? "bg-emerald-600 text-white" : "text-slate-500 hover:bg-slate-100"
+                      }`}
+                    >
+                      <t.icon size={15} />
+                      {t.label}
+                    </button>
+                  );
+                })}
+              </nav>
+            </header>
+
+            <main className="mx-auto max-w-3xl px-4 py-6">
+              {activeTab === "dashboard" && <DashboardTab today={today} history={HISTORY} />}
+              {activeTab === "activity" && <ActivityTab today={today} setToday={setToday} />}
+              {activeTab === "reminders" && (
+                <ReminderTab reminders={reminders} toggleReminder={toggleReminder} addReminder={addReminder} />
+              )}
+              {activeTab === "profile" && <ProfileTab profile={profile} onEdit={() => setShowEditProfile(true)} />}
+            </main>
+
+            <footer className="border-t border-slate-200 bg-white px-4 py-3">
+              <div className="mx-auto flex max-w-3xl items-center justify-between text-xs text-slate-400">
+                <span>Sehat Harian — pemantauan gaya hidup mandiri</span>
+                <button onClick={() => setShowPrivacy(true)} className="flex items-center gap-1 font-medium text-slate-500 hover:text-emerald-600">
+                  <ShieldCheckIcon size={14} /> Privasi &amp; data
+                </button>
+              </div>
+            </footer>
+
+            {showPrivacy && <PrivacyModal onClose={() => setShowPrivacy(false)} />}
+            {showEditProfile && (
+              <EditProfileModal
+                profile={profile}
+                onClose={() => setShowEditProfile(false)}
+                onSave={(updated) => { setProfile(updated); setShowEditProfile(false); }}
+              />
+            )}
+          </div>
+        );
+      }
+
+      ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+    </script>
+
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker
+            .register("./service-worker.js")
+            .catch((err) => console.error("Registrasi service worker gagal:", err));
+        });
+      }
+    </script>
+  </body>
+</html>
